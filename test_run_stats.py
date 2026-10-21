@@ -24,17 +24,68 @@ class TestMedian(unittest.TestCase):
         result = run_stats.median(values)        # Act
         self.assertEqual(result, 3)              # Assert
 
-    # TODO: even count (BUG-1)    TODO: empty list (BUG-7)    TODO: input list not changed
+    def test_even_count_returns_mean_of_middle(self):
+        values = [6, 4, 3, 2]
+        result = run_stats.median(values)
+        self.assertEqual(result, 3.5)
+
+    def test_empty_list(self):
+        values = []
+        with self.assertRaises(ValueError):
+            run_stats.median(values)
+
+    def test_input_list_not_changed(self):
+        values = [3, 6, 4, 2]
+        before = list(values)
+        run_stats.median(values)
+        self.assertEqual(values, before)
 
 
 class TestSlowest(unittest.TestCase):
-    pass
-    # TODO: n items, biggest first (BUG-2)    TODO: n == 0    TODO: caller's list not reordered (BUG-6)
+    def test_biggest_comes_first(self):
+        values = [200, 300, 100, 400]
+        result = run_stats.slowest(values, 5)
+        self.assertEqual(result[0], 400)
+
+    def test_n_is_zero(self):
+        values = [100, 200, 250]
+        result = run_stats.slowest(values, 0)
+        self.assertEqual(result, [])
+
+    def test_list_not_reordered(self):
+        values = [150, 320, 100, 400, 200]
+        before = list(values)
+        run_stats.slowest(values, 2)
+        self.assertEqual(values, before)
 
 
 class TestGroupBySuite(unittest.TestCase):
-    pass
+
+    def setUp(self):
+        # every result has a suite (BUG-3)
+        self.values = [
+            {"test": "t1", "suite": "login",  "status": "pass"},
+            {"test": "t2", "suite": "login",  "status": "fail"},
+            {"test": "t3", "suite": "login",  "status": "pass"},
+            {"test": "t4", "suite": "search", "status": "pass"},
+            {"test": "t5", "suite": "search", "status": "skip"},
+        ]
+
+        # one result with no "suite" key -> should go to "unknown"
+        self.values_missing_suite = [
+            {"test": "t1", "suite": "login", "status": "pass"},
+            {"test": "t6", "status": "fail"},
+        ]
     # TODO: counts per suite and status (BUG-3)    TODO: missing "suite" -> "unknown"    TODO: assertLogs WARNING
+    def test_count_per_suite_and_status(self):
+        expected = {
+            "login":  {"pass": 2, "fail": 1},
+            "search": {"pass": 1, "skip": 1},
+        }
+        result = run_stats.group_by_suite(self.values)
+        self.assertEqual(result, expected)
+
+    
 
 
 class TestNoteFlaky(unittest.TestCase):

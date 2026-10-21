@@ -27,7 +27,9 @@ def next_run_id():
     """
     global run_counter
     run_counter += 1
-    return f"RUN-{run_counter:04d}"
+    result = f"RUN-{run_counter:04d}"
+    logger.debug("test id when there have been %d test cases = %s", run_counter, result)
+    return result
 
 
 def median(values):
@@ -77,6 +79,8 @@ def group_by_suite(results):
     """
     grouped = {}
     for result in results:
+        if "suite" not in result:
+            logger.warning("%s has no 'suite', marking as unknown", str(result))
         suite = result.get("suite", "unknown")
         status = result["status"]
         if suite not in grouped:
@@ -94,6 +98,7 @@ def note_flaky(test_name, flaky=None):
     if flaky is None:
         flaky = []
     flaky.append(test_name)
+    logger.info("%s flagged, %d flagged in total", test_name, len(flaky))
     return flaky
 
 
@@ -117,4 +122,5 @@ def summarise_run(results, durations):
         "slowest_ms": slowest(durations, 3),
         "latest_ms": durations[-1] if durations else None,
     }
+    logger.info("got summary, id: %s, number of results: %d, number of suites: %d", summary["run_id"], summary["total"], len(summary["by_suite"]))
     return summary

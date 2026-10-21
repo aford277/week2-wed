@@ -77,7 +77,7 @@ def main(argv):
 
         fmt = logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
 
-        console = logging.StreamHandler()
+        console = logging.StreamHandler(sys.stdout)
         console.setLevel(logging.INFO)
         console.setFormatter(fmt)
 
