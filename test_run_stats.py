@@ -24,12 +24,12 @@ class TestMedian(unittest.TestCase):
         result = run_stats.median(values)        # Act
         self.assertEqual(result, 3)              # Assert
 
-    def test_even_count_returns_mean_of_middle(self):
+    def test_even_count_returns_mean_of_middle_values(self):
         values = [6, 4, 3, 2]
         result = run_stats.median(values)
-        self.assertEqual(result, 3.5)
+        self.assertAlmostEqual(result, 3.5)
 
-    def test_empty_list(self):
+    def test_empty_list_raises_valueerror(self):
         values = []
         with self.assertRaises(ValueError):
             run_stats.median(values)
@@ -42,17 +42,17 @@ class TestMedian(unittest.TestCase):
 
 
 class TestSlowest(unittest.TestCase):
-    def test_biggest_comes_first(self):
+    def test_biggest_n_comes_first(self):
         values = [200, 300, 100, 400]
-        result = run_stats.slowest(values, 5)
-        self.assertEqual(result[0], 400)
+        result = run_stats.slowest(values, 2)
+        self.assertEqual(result, [400,300])
 
-    def test_n_is_zero(self):
+    def test_n_is_zero_gives_empty_list(self):
         values = [100, 200, 250]
         result = run_stats.slowest(values, 0)
         self.assertEqual(result, [])
 
-    def test_list_not_reordered(self):
+    def test_list_not_reordere(self):
         values = [150, 320, 100, 400, 200]
         before = list(values)
         run_stats.slowest(values, 2)
@@ -62,7 +62,6 @@ class TestSlowest(unittest.TestCase):
 class TestGroupBySuite(unittest.TestCase):
 
     def setUp(self):
-        # every result has a suite (BUG-3)
         self.values = [
             {"test": "t1", "suite": "login",  "status": "pass"},
             {"test": "t2", "suite": "login",  "status": "fail"},
@@ -76,7 +75,6 @@ class TestGroupBySuite(unittest.TestCase):
             {"test": "t1", "suite": "login", "status": "pass"},
             {"test": "t6", "status": "fail"},
         ]
-    # TODO: counts per suite and status (BUG-3)    TODO: missing "suite" -> "unknown"    TODO: assertLogs WARNING
     def test_count_per_suite_and_status(self):
         expected = {
             "login":  {"pass": 2, "fail": 1},
@@ -85,21 +83,47 @@ class TestGroupBySuite(unittest.TestCase):
         result = run_stats.group_by_suite(self.values)
         self.assertEqual(result, expected)
 
-    
+    def test_missing_suite_gives_unknown(self):
+        expected = {
+            "login":  {"pass": 1},
+            "unknown": {"fail": 1},
+        }
+        result = run_stats.group_by_suite(self.values_missing_suite)
+        self.assertEqual(result, expected)
+
+    def test_warning_log_raised_on_missing_suite(self):
+        with self.assertLogs("run_stats", level="WARNING") as cm:
+            run_stats.group_by_suite(self.values_missing_suite)
 
 
 class TestNoteFlaky(unittest.TestCase):
-    pass
-    # TODO: two calls without a list do not share state (BUG-4)    TODO: caller's own list is extended
+    def test_two_calls_dont_share_list(self):
+        first_list = run_stats.note_flaky("test_1")
+        second_list = run_stats.note_flaky("test_2")
+        self.assertIsNot(first_list, second_list)
 
 
 class TestRunIdAndSummary(unittest.TestCase):
     def setUp(self):
         run_stats.run_counter = 0                # reset shared state so each test starts clean
         self.results = [{"test": "t1", "suite": "login", "status": "pass"}]
+        self.durations = [120, 80, 340, 95, 210, 150]
 
-    pass
     # TODO: ids increase (BUG-5)    TODO: summary with durations (latest_ms, BUG-6)    TODO: summary with [] (BUG-7)
+    def test_counter_increases(self):
+        before = run_stats.run_counter
+        run_stats.summarise_run(self.results, self.durations)
+        self.assertNotEqual(run_stats.run_counter, before)
+
+    def test_latest_duration_not_moved(self):
+        summary = run_stats.summarise_run(self.results, self.durations)
+        self.assertEqual(summary["latest_ms"], 150)
+
+    def test_summary_with_empty_durations_gives_none(self):
+        summary = run_stats.summarise_run(self.results, [])
+        self.assertIsNone(summary["median_ms"])
+        self.assertIsNone(summary["latest_ms"])
+        self.assertEqual(summary["slowest_ms"], [])
 
 
 if __name__ == "__main__":
